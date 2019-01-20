@@ -111,7 +111,8 @@ farmsTime %>%
 ```{r graph one}
 farmSizes %>%
   ggplot(aes(x = State.x, y = total_farms, fct_reorder(State.x, total_farms))) +
-    geom_col(aes(fill = farm_size)) + 
+    geom_col(aes(fill = farm_size),
+             position = "dodge") + 
     labs(x = "State",
          y = "Number of Farms",
          title = "Texas has the most farms of any State",
