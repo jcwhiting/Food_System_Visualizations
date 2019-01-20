@@ -1,0 +1,178 @@
+---
+title: "First Graphs"
+author: "Julia Whiting"
+date: "1/20/2019"
+output: html_document
+---
+
+```{r libraries}
+library(tidyverse)
+library(haven)
+library(readxl)
+library(rmarkdown)
+library(ggplot2)
+library(forcats)
+library(stringr)
+library(stringi)
+install.packages("hexbin")
+library(hexbin)
+library(scales)
+```
+
+## Data Work
+
+```{r data}
+access <- read_excel("foodAtlas.xlsx", sheet = 5)
+assistance <- read_xlsx("foodAtlas.xlsx", sheet = 6)
+security <- read_xlsx("foodAtlas.xlsx", sheet = 8)
+health <- read_xlsx("foodAtlas.xlsx", sheet = 7)
+farmsTime <- read_xlsx("farmnumbers.xlsx")
+agCensus <- da35206.0047 
+access <- access %>%
+  mutate(FIPS = as.integer(FIPS))
+assistance <- assistance %>%
+  mutate(FIPS = as.integer(FIPS))
+security <- security %>%
+  mutate(FIPS = as.integer(FIPS))
+health <- mutate(health, FIPS = as.integer(FIPS))
+
+
+
+states <- agCensus %>%
+  filter(COUNICP == 0)
+cntys <-  select(agCensus, COUNICP != 0)
+accAss <- right_join(access, assistance, by = "FIPS")
+accAssSec <- right_join(accAss, security, by = "FIPS")
+ctyFarms <- inner_join(accAssSec, agCensus, by = "FIPS")
+ctyFarms <- inner_join(ctyFarms, health, by = "FIPS")
+
+farmSizes <-ctyFarms %>% 
+  group_by(State.x) %>%
+  select(DATA1_9:DATA1_14) %>%
+   gather("DATA1_9", "DATA1_10", "DATA1_11", "DATA1_12", "DATA1_13", "DATA1_14",
+         key = "farm_size", value = "farms") %>%
+  mutate(farm_size = as.factor(farm_size)) %>%
+  mutate(farm_size = fct_recode(farm_size,
+              "1-9 Acres" = "DATA1_9",
+             "10-49 Acres" = "DATA1_10",
+             "50-179 Acres" = "DATA1_11",
+             "180-499 Acres" = "DATA1_12",
+             "500-999 Acres" = "DATA1_13",
+             "1000+ Acres" = "DATA1_14")) %>%
+  group_by(State.x, farm_size) %>%
+  summarise(total_farms = (sum(farms))) %>%
+  na.omit(State.x) 
+
+farmValues <-
+  ctyFarms %>%
+  group_by(State.x) %>%
+  select(DATA1_25:DATA1_31) %>%
+  gather("DATA1_25", "DATA1_26", "DATA1_27", "DATA1_28", "DATA1_29",
+         "DATA1_29", "DATA1_30", "DATA1_31",
+         key = "farm_value", value = "farms") %>%
+  mutate(farm_value = as.factor(farm_value)) %>%
+  mutate(farm_value = fct_recode(farm_value,
+                                 "<$2500" = "DATA1_25",
+                                 "$2500-4999" = "DATA1_26",
+                                 "$5000-9999" = "DATA1_27",
+                                 "$10,000-24,999" = "DATA1_28",
+                                 "$25,000-49,999" = "DATA1_29",
+                                 "$50,000-99,999" = "DATA1_30",
+                                 "$100,000+" = "DATA1_31")) %>%
+  group_by(State.x, farm_value) %>%
+  summarise(total_farms = sum(farms))
+
+byState <- ctyFarms %>%
+  group_by(State.x) %>%
+  summarise(low_acc_pop = sum(LACCESS_POP10)/1000000,
+            farms = sum(DATA1_1),
+            snap_redemp = sum(REDEMP_SNAPS12,
+                              na.rm = TRUE)/1000000,
+            payments = sum(DATA1_33, na.rm = TRUE),
+            cropland = sum(DATA1_15, na.rm = TRUE),
+            farmland = sum(DATA1_2, na.rm = TRUE),
+            avg_land = mean(DATA1_3, na.rm = TRUE),
+            obeseAd = mean(PCT_OBESE_ADULTS13),
+            insec = mean(VLFOODSEC_10_12 + FOODINSEC_10_12)) %>%
+  filter(State.x != "0")
+
+```
+
+## Graph One: Size and Number of Farms by State
+
+```{r graph one}
+farmSizes %>%
+  ggplot(aes(x = State.x, y = total_farms, fct_reorder(State.x, total_farms))) +
+    geom_col(aes(fill = farm_size)) + 
+    labs(x = "State",
+         y = "Number of Farms",
+         title = "Texas has the most farms of any State",
+         subtitle = "Most farms are between 49-180 acres",
+         caption = "Data Source: 2012 Agricultural Census",
+         fill = "Farm Size") +
+    theme(axis.text.x = element_text(angle = 90),
+    strip.text = element_text(face = "bold", 
+                                  size = rel(0.2)))
+```
+
+## Graph Two: Number of farms, food insecure residents, SNAP benefit payments,
+## and residents with low access to food, by State
+
+```{r}
+byState %>%
+  ggplot(aes(x = farms, y = low_acc_pop)) +
+    geom_point(aes(size = snap_redemp, color = insec), 
+               alpha = 0.6) +
+    geom_text(aes(label = State.x), 
+              size = 2, 
+              color = "white")) +
+    scale_size_continuous(range = c(3, 11), labels = comma) +
+    scale_y_continuous(breaks = pretty(byState$low_acc_pop, n = 6)) +
+    scale_x_continuous(breaks = pretty(byState$farms, n = 6))+
+    scale_color_continuous(low = "#56B1F7", 
+                           high = "#132B43") +
+  labs(x = "Number of Farm",
+       y = "Residents with Low Food Access (Millions)", 
+       size = "SNAP Redemptions (Millions)",
+       color = "Percent of Food Insecure Population",
+       caption = "Data Source: Agricultural Census 2012",
+         title = "Texas is outlier in number of farms, low food access, and SNAP Redemptions",
+         subtitle = "Low food security is not related to low food access")
+```
+
+## Graph 3: 
+DATA2_3  total sales $1000
+2_5 avg sales/farm $ in 2012
+2_6 avg sales/farm $ 2007
+3_5 avg expenses/farm in 2012
+3_6 avg expenses/farm 2007
+```{r}
+farmbystate <-
+farmsTime %>%
+  na.omit(farmsTime) %>%
+  gather("1950", "1982", "2002", "2007", "2012",
+         key = "year",
+         value = "farms") %>%
+  filter(FIPS != 0 & FIPS != 11) %>%
+  mutate(farms = as.integer(farms)) %>%
+  group_by(Areaname, year) %>%
+  summarise(total_farms = sum(farms, na.rm = TRUE))
+
+
+ggplot(data = farmbystate, aes(x= year, y = total_farms)) +
+  geom_line(aes(group = Areaname), color = "grey", alpha = 0.6) +
+  geom_line(data = filter(farmbystate, Areaname == "Texas"), 
+            aes(group = Areaname), 
+            color = "red",
+            linetype = "dashed") + 
+  annotate("text", x = 3, y = 250000, label = "Texas")+
+  labs(x = "Year",
+       y = "Number of Farms",
+       title = "Texas gained farms during period of national decline",
+       subtitle = "Farms in the US have declined from 1950-2012",
+       source = "Iowa Community Indicators Program") +
+  scale_y_continuous(labels = comma)
+  
+
+```
+
