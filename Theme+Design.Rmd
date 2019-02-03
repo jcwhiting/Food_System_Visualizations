@@ -1,0 +1,70 @@
+---
+title: "Static Style"
+author: "Julia Whiting"
+date: "2/3/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+install.packages("extrafont")
+install.packages("extrafontdb")
+install.packages("showtext")
+install.packages("sysfonts")
+library(sysfonts)
+library(showtext)
+library(tidyverse)
+library(extrafont)
+library(extrafontdb)
+```
+
+## Farm Values In Sales
+
+```{r cars}
+farmVals %>%
+  group_by(farm_value) %>%
+  summarise(tot_farms = sum(total_farms)) %>%
+  mutate(ymax = cumsum(farm_value),
+         ymin = min(farm_value)) %>%
+  ggplot(aes(fill = farm_value, x = "", y = tot_farms)) +
+    geom_bar(stat = "identity") +
+    coord_polar("y", start = 0) +
+    main_theme +
+    labs(title = "Farming is an Extreme business.")
+    
+  
+  ggplot(dat, aes(fill=category, ymax=ymax, ymin=ymin, xmax=4, xmin=3)) +
+     geom_rect(colour="grey30") +
+     coord_polar(theta="y") +
+     xlim(c(0, 4)) +
+     theme_bw() +
+     theme(panel.grid=element_blank()) +
+     theme(axis.text=element_blank()) +
+     theme(axis.ticks=element_blank()) +
+     labs(title="Customized ring plot")
+```
+
+## Theme Work
+
+```{r theme}
+font_import()
+fonts()
+fonttable()
+
+font_add_google("Open Sans Condensed", "condensed")
+
+
+
+main_theme <- theme(plot.title = element_text(color = "black",
+                                              family = "Tahoma Bold",
+                                              hjust = 0.5),
+                    plot.subtitle = element_text(color = "black",
+                                                 family = "Tahoma"),
+                    panel.background = element_rect(color = "#FFEAB2"),
+                    panel.grid = element_blank(),
+                    axis
+                    )
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
